@@ -1,34 +1,23 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-
-public enum CellState
-{
-    Empty,
-    Flagged,
-    Mine
-}
 
 public class Cell : MonoBehaviour
 {
-    public CellState state;
+    private Vector3Int id;
+    private bool mined;
+    private bool flagged;
     private int close;
-    public Vector3Int id;
-    public Action onClick;
-    public Action onRightClick;
     private bool revealed;
-    public Number number;
+
+    [SerializeField]
+    private Number number;
+
+    public Action OnClick;
+    public Action OnRightClick;
 
     public bool Revealed
     {
         get => revealed;
-        set
-        {
-            GetComponent<MeshRenderer>().enabled = !value;
-            number.gameObject.SetActive(value);
-            revealed = value;
-        }
     }
 
     public int Close
@@ -41,16 +30,79 @@ public class Cell : MonoBehaviour
         }
     }
 
+    public bool Flagged
+    {
+        get => flagged;
+        set => flagged = value;
+    }
+    public bool Mined
+    {
+        get => mined;
+        set => mined = value;
+    }
+    public Vector3Int Id
+    {
+        get => id;
+        set => id = value;
+    }
+
+    MeshRenderer mr;
+    Collider col;
+    Rigidbody rb;
+
+    public void Start()
+    {
+        rb = GetComponent<Rigidbody>();
+        mr = GetComponent<MeshRenderer>();
+        col = GetComponent<Collider>();
+    }
+
+    public void Reveal()
+    {
+        flagged = false;
+        mr.enabled = false;
+        col.enabled = false;
+        revealed = true;
+
+        if (mined)
+        {
+            Explosion.Explode(transform.position);
+        }
+        else
+        {
+            number.gameObject.SetActive(true);
+        }
+    }
+
+    public void ApplyExplosiveForce(Vector3 origin)
+    {
+        number.gameObject.SetActive(false);
+        rb.isKinematic = false;
+        var diff =
+            (transform.position - origin)
+            + new Vector3(
+                UnityEngine.Random.Range(-.5f, .5f),
+                UnityEngine.Random.Range(-.5f, .5f),
+                UnityEngine.Random.Range(-.5f, .5f)
+            );
+        var mag = diff.magnitude;
+        rb.AddForce((diff / mag) * Mathf.Max(1, 10 - mag) * 500);
+    }
+
     void OnGUI()
     {
         Vector3 pos = Camera.main.WorldToScreenPoint(transform.position);
-        if (state == CellState.Mine)
+        if (mined)
         {
-            GUI.color = Color.red;
+            GUI.color = flagged ? Color.yellow : Color.red;
             GUI.Label(new Rect(pos.x, Screen.height - pos.y, 100, 30), "X");
         }
-        else if (state == CellState.Flagged) { }
-        else if (Close != 0)
+        else if (flagged)
+        {
+            GUI.color = Color.magenta;
+            GUI.Label(new Rect(pos.x, Screen.height - pos.y, 100, 30), "F");
+        }
+        else if (close != 0)
         {
             // GUI.Label(new Rect(pos.x, Screen.height - pos.y, 100, 30), Close.ToString());
         }
